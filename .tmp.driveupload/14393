@@ -1,0 +1,15 @@
+[core]
+	repositoryformatversion = 0
+	filemode = false
+	bare = false
+	logallrefupdates = true
+	symlinks = false
+	ignorecase = true
+[user]
+	email = kamchee@dshs.kr
+	name = 하진수
+[remote "origin"]
+	url = https://github.com/hajinsu9951/2026-AI-MATH-PROJECT.git
+	fetch = +refs/heads/*:refs/remotes/origin/*
+[use]
+	email = kamchee@dshs.kr
