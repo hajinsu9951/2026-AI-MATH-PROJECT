@@ -6,6 +6,8 @@ DOCS = r"G:\다른 컴퓨터\학교컴퓨터\2026_AI_MATH\docs"
 s = open(os.path.join(DOCS, 'startup10.html'), encoding='utf-8').read()
 
 s = s.replace('<a class="pk" href="https://github.com/hajinsu9951/2026-AI-MATH-PROJECT" target="_blank" rel="noopener">💻 GitHub 저장소(사이트·데이터 소스)</a>', '')
+s = re.sub(r'<a class="pk" href="https://github\.com/[^"]*"[^>]*>[^<]*</a>', '', s)  # 제출용: 학생 팀 저장소 포함 깃허브 링크 전체 제거
+s = s.replace('보고서 70건 전수 판독 결과 팀 자체 깃허브 저장소는 위 1건이며, 그 외 산출물은', '학생 산출물은')
 s = re.sub(r'<a class="xp-btn" href="https://github\.com/hajinsu9951/2026-AI-MATH-PROJECT"[^>]*>[^<]*</a>', '', s)
 s = s.replace(' 전체 코드·아카이브는 하단 GitHub 버튼에서 볼 수 있습니다.', ' 전체 산출물은 하단 성과 아카이브에서 열람할 수 있습니다.')
 s = s.replace('app.notion.com/p/dshskr/', 'app.notion.com/p/')
