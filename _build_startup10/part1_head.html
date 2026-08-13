@@ -427,8 +427,8 @@
   }
   .thumb-card:hover { transform: translateY(-4px); box-shadow: 0 10px 22px rgba(20,33,61,.16); }
   .thumb-card .tc-img {
-    width: 108px; min-width: 108px; aspect-ratio: auto; object-fit: cover; object-position: top; display: block;
-    background: linear-gradient(135deg, #E8F0F8, #D6E4F0); pointer-events: none; user-select: none;
+    width: 126px; min-width: 126px; aspect-ratio: 707/1000; object-fit: contain; object-position: center; display: block;
+    background: #FFFFFF; border-right: 1px solid var(--line); align-self: center; pointer-events: none; user-select: none;
   }
   .thumb-card .tc-body { padding: 11px 13px 13px; flex: 1; }
   .thumb-card .tc-title { font-size: 15px; font-weight: 700; color: var(--navy); line-height: 1.5; }
@@ -445,6 +445,17 @@
     font-size: 12px; font-family: inherit; }
   button.tc-open:hover { background: #E8F0FB; }
   .cv-note { font-size: 11.5px; color: var(--sub); margin-top: 3px; }
+  details.hub-wrap { margin: 8px 0 4px; }
+  details.hub-wrap summary { cursor: pointer; font-weight: 700; color: var(--blue); padding: 9px 12px;
+    border: 1px dashed var(--line); border-radius: 10px; background: #F7FAFD; font-size: 13.5px; }
+  details.hub-wrap[open] summary { margin-bottom: 10px; }
+  .hub-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(172px, 1fr)); gap: 10px; }
+  .hub-card { border: 1px solid var(--line); border-radius: 10px; overflow: hidden; background: var(--card);
+    text-decoration: none; color: inherit; display: flex; flex-direction: column; transition: transform .15s, box-shadow .15s; }
+  .hub-card:hover { transform: translateY(-2px); box-shadow: 0 6px 16px rgba(20,45,80,.12); }
+  .hub-card img { width: 100%; aspect-ratio: 4/3; object-fit: cover; object-position: top; display: block;
+    background: #EFF4FA; pointer-events: none; user-select: none; }
+  .hub-card .hc-t { font-size: 12px; padding: 8px 9px 9px; line-height: 1.45; }
   .thumb-card .tc-tags { margin-bottom: 6px; display: flex; gap: 5px; flex-wrap: wrap; }
 
   /* ---- 활동 스케치 · 포스터 · 차트 ---- */

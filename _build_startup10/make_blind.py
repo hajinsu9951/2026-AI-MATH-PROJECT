@@ -12,6 +12,7 @@ s = s.replace('app.notion.com/p/dshskr/', 'app.notion.com/p/')
 s = re.sub(r' data-view="[^"]*"', '', s)  # 제출용: 원문 열람 비활성화(원문 내 실명 노출 차단)
 s = re.sub(r'<button class="tc-open"[^>]*>[^<]*</button>', '', s)  # 제출용: 열람 비활성이므로 버튼 제거
 s = s.replace('아산 티쳐프러너 6기 하진수 외 4명 제작', '아산 티쳐프러너 6기 교사 5인 공동 제작')  # 실명 블라인드
+s = s.replace('대전대신고등학교', '○○고등학교').replace('대신고등학교', '○○고등학교').replace('대신고', '○○고')  # 팀 제목 내 학교명 블라인드
 s = re.sub(r'href="https://daeshinmath\.my\.canva\.site/[^"]*"', 'href="#" onclick="return false"', s)  # 학교 식별 서브도메인 차단
 
 out = os.path.join(DOCS, 'startup10_제출용.html')
