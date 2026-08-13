@@ -1,0 +1,144 @@
+<script>
+/* ================= 구동형 수업 도구 (1·2·5·6·8·9·10차시) ================= */
+(function () {
+  'use strict';
+
+  /* ---------- 역량 자기진단 (1차시) ---------- */
+  var DIAG_ROLE = [
+    ['CDO(데이터 담당)', '숫자·표·출처 확인은 당신 몫 — 4차시 검증 리포트의 주인공입니다.'],
+    ['CTO(제작 담당)', '회로·화면·조립 — 8차시 프로토타이핑을 이끄세요.'],
+    ['CEO(기록·조율)', '회의록·활동지·일정 — 팀의 기억을 담당합니다.'],
+    ['CMO(발표 담당)', '3분 피칭과 부스 설명 — 10차시의 목소리입니다.'],
+    ['아이디어 촉진자', '어느 역할이든 좋습니다 — 5차시 브레인라이팅에서 첫 줄을 여세요.'],
+    ['CEO(기록·조율)', '역할 분담과 완성 기준 합의를 주도하세요.']
+  ];
+  var diagSel = [];
+  window.diagToggle = function (li, idx) {
+    var cb = li.querySelector('input');
+    var pos = diagSel.indexOf(idx);
+    if (pos >= 0) { diagSel.splice(pos, 1); cb.checked = false; li.classList.remove('on'); }
+    else {
+      if (diagSel.length >= 2) {
+        var old = diagSel.shift();
+        var lis = document.querySelectorAll('#wg-diag .diag-list li');
+        lis[old].classList.remove('on');
+        lis[old].querySelector('input').checked = false;
+      }
+      diagSel.push(idx); cb.checked = true; li.classList.add('on');
+    }
+    var m = document.getElementById('diag-msg');
+    if (diagSel.length < 2) {
+      m.className = 'wg-msg';
+      m.textContent = (2 - diagSel.length) + '개 더 고르세요. 기준은 "굳이 고르면 이게 낫다"입니다.';
+      return;
+    }
+    var roles = diagSel.map(function (i) { return '<b>' + DIAG_ROLE[i][0] + '</b> — ' + DIAG_ROLE[i][1]; });
+    m.className = 'wg-msg good';
+    m.innerHTML = '추천 역할: ' + roles.join('<br>') + '<br><span style="font-size:12px;">이제 <b>나와 다른 항목</b>에 표시한 친구를 찾아 3~4명 팀을 만드세요 — 강점이 겹치는 팀은 약점도 겹칩니다. (진단 결과는 성적이 아닙니다)</span>';
+  };
+
+  /* ---------- 문제 정의문 조립기 (2차시) ---------- */
+  window.defBuild = function () {
+    var v = function (id) { return (document.getElementById(id).value || '').trim(); };
+    var when = v('def-when'), where = v('def-where'), who = v('def-who'), why = v('def-why'), num = v('def-num');
+    var out = document.getElementById('def-out');
+    var chk = document.getElementById('def-check');
+    var parts = [when, where, who, why];
+    var filled = parts.filter(Boolean).length;
+    if (filled === 0) { out.className = 'wg-msg'; out.textContent = '위 칸을 채우면 문제 정의문이 여기에 조립됩니다.'; chk.textContent = ''; return; }
+    var sentence = '"' + [when, where, who].filter(Boolean).join(' ') + (why ? ' ' + why : '') + '"';
+    var pass = filled === 4 && num.length > 0;
+    out.className = 'wg-msg' + (pass ? ' good' : '');
+    out.innerHTML = sentence + (num ? '<br>→ 재는 숫자: <b>' + num + '</b>' : '');
+    chk.innerHTML = '통과 조건: 4요소 ' + filled + '/4 ' + (filled === 4 ? '✅' : '…') + ' · 재는 숫자 ' + (num ? '✅' : '❌') + (pass ? ' → <b style="color:var(--green);">통과!</b>' : '');
+  };
+  window.defCopy = function () {
+    var out = document.getElementById('def-out').textContent;
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(out);
+      document.getElementById('def-check').innerHTML = '📋 복사되었습니다 — 활동지②에 붙여넣으세요.';
+    }
+  };
+
+  /* ---------- 인쇄(요소 단위) ---------- */
+  window.printEl = function (id) {
+    var el = document.getElementById(id);
+    if (!el) return;
+    el.classList.add('ws-sheet', 'on');
+    document.body.classList.add('ws-print');
+    window.print();
+    setTimeout(function () {
+      document.body.classList.remove('ws-print');
+      el.classList.remove('ws-sheet', 'on');
+    }, 700);
+  };
+
+  /* ---------- 수업 타이머 (5·9·10차시) ---------- */
+  function tmRoot(btn) { return btn.closest('.timer'); }
+  function tmDisp(root, sec) {
+    var m = Math.floor(sec / 60), s = sec % 60;
+    root.querySelector('.tm-disp').textContent = (m < 10 ? '0' : '') + m + ':' + (s < 10 ? '0' : '') + s;
+  }
+  function beep() {
+    try {
+      var ctx = new (window.AudioContext || window.webkitAudioContext)();
+      [0, 0.35, 0.7].forEach(function (t) {
+        var o = ctx.createOscillator(), g = ctx.createGain();
+        o.connect(g); g.connect(ctx.destination);
+        o.frequency.value = 880; g.gain.value = 0.25;
+        o.start(ctx.currentTime + t); o.stop(ctx.currentTime + t + 0.25);
+      });
+    } catch (e) {}
+  }
+  var TM = {};
+  function tmState(root) {
+    var id = root.id;
+    if (!TM[id]) TM[id] = { left: parseInt(root.getAttribute('data-sec'), 10), timer: null };
+    return TM[id];
+  }
+  window.tmSet = function (btn, sec) {
+    var root = tmRoot(btn), st = tmState(root);
+    clearInterval(st.timer); st.timer = null;
+    st.left = sec; root.setAttribute('data-sec', sec);
+    root.classList.remove('tm-done');
+    tmDisp(root, sec);
+  };
+  window.tmStart = function (btn) {
+    var root = tmRoot(btn), st = tmState(root);
+    if (st.timer) return;
+    root.classList.remove('tm-done');
+    st.timer = setInterval(function () {
+      st.left--;
+      if (st.left <= 0) {
+        st.left = 0; tmDisp(root, 0);
+        clearInterval(st.timer); st.timer = null;
+        root.classList.add('tm-done');
+        beep();
+        return;
+      }
+      tmDisp(root, st.left);
+    }, 1000);
+  };
+  window.tmPause = function (btn) {
+    var st = tmState(tmRoot(btn));
+    clearInterval(st.timer); st.timer = null;
+  };
+  window.tmReset = function (btn) {
+    var root = tmRoot(btn), st = tmState(root);
+    clearInterval(st.timer); st.timer = null;
+    st.left = parseInt(root.getAttribute('data-sec'), 10);
+    root.classList.remove('tm-done');
+    tmDisp(root, st.left);
+  };
+
+  /* ---------- 프롬프트 복사 (8차시) ---------- */
+  window.copyPrompt = function (btn) {
+    var card = btn.parentElement;
+    var text = card.textContent.replace(/복사$/, '').replace(/복사됨!$/, '').trim();
+    var done = function () { btn.textContent = '복사됨!'; setTimeout(function () { btn.textContent = '복사'; }, 1600); };
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(text).then(done, done);
+    } else { done(); }
+  };
+})();
+</script>

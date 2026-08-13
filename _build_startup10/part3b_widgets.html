@@ -1,0 +1,306 @@
+<script>
+/* ================= 웹 체험 위젯 (3~4차시) ================= */
+(function () {
+  'use strict';
+  var NS = 'http://www.w3.org/2000/svg';
+  function el(tag, attrs, parent) {
+    var e = document.createElementNS(NS, tag);
+    for (var k in attrs) e.setAttribute(k, attrs[k]);
+    if (parent) parent.appendChild(e);
+    return e;
+  }
+
+  /* ---------- ① KNN 카드 실습 ---------- */
+  var A = [[12,18],[20,26],[28,14],[16,36],[30,30],[22,44],[37,23],[10,28],[26,52],[34,40],[18,10],[40,34]];
+  var B = [[62,30],[70,44],[78,26],[66,54],[84,38],[74,14],[58,44],[88,50],[80,58],[64,20],[90,30],[72,34]];
+  var TESTS = [
+    { p: [24,28], hint: '' },
+    { p: [76,40], hint: '' },
+    { p: [52,34], hint: ' 💡 k를 3 ↔ 7로 바꿔 다시 확인해 보세요 — 다수결이 뒤집힙니다!' },
+    { p: [46,50], hint: '' },
+    { p: [58,26], hint: '' }
+  ];
+  var knnK = 3, knnIdx = 0;
+  function sx(x) { return 34 + x * 4.0; }
+  function sy(y) { return 278 - y * 3.6; }
+  function knnDraw() {
+    var svg = document.getElementById('knn-svg');
+    if (!svg) return;
+    svg.innerHTML = '';
+    el('text', { x: 442, y: 294, 'text-anchor': 'end', 'font-size': 11, fill: '#8896A6' }, svg).textContent = '소음(dB) →';
+    el('text', { x: 12, y: 16, 'font-size': 11, fill: '#8896A6' }, svg).textContent = '↑ 유동인구';
+    var t = TESTS[knnIdx].p;
+    var all = [];
+    A.forEach(function (p) { all.push({ p: p, c: 'A' }); });
+    B.forEach(function (p) { all.push({ p: p, c: 'B' }); });
+    all.forEach(function (o) {
+      o.d = Math.sqrt(Math.pow(o.p[0] - t[0], 2) + Math.pow(o.p[1] - t[1], 2));
+    });
+    all.sort(function (a, b) { return a.d - b.d; });
+    var near = all.slice(0, knnK);
+    near.forEach(function (o) {
+      el('line', { x1: sx(t[0]), y1: sy(t[1]), x2: sx(o.p[0]), y2: sy(o.p[1]), stroke: '#8896A6', 'stroke-width': 1.6, 'stroke-dasharray': '4 4' }, svg);
+    });
+    all.forEach(function (o) {
+      var isNear = near.indexOf(o) >= 0;
+      el('circle', { cx: sx(o.p[0]), cy: sy(o.p[1]), r: isNear ? 9 : 7, fill: o.c === 'A' ? '#2E75B6' : '#F77F00', stroke: isNear ? '#14213D' : '#fff', 'stroke-width': isNear ? 2.5 : 1.5, opacity: isNear ? 1 : 0.85 }, svg);
+    });
+    var star = el('text', { x: sx(t[0]), y: sy(t[1]) + 7, 'text-anchor': 'middle', 'font-size': 24, fill: '#14213D', 'font-weight': 900 }, svg);
+    star.textContent = '★';
+    return near;
+  }
+  function knnMajority() {
+    var near = knnDraw();
+    var a = near.filter(function (o) { return o.c === 'A'; }).length;
+    return { a: a, b: knnK - a, maj: a > knnK - a ? 'A' : 'B' };
+  }
+  window.knnSetK = function (btn) {
+    knnK = parseInt(btn.getAttribute('data-k'), 10);
+    var btns = btn.parentElement.querySelectorAll('.wg-btn[data-k]');
+    for (var i = 0; i < btns.length; i++) btns[i].classList.remove('on');
+    btn.classList.add('on');
+    knnDraw();
+    var m = document.getElementById('knn-msg');
+    m.className = 'wg-msg';
+    m.textContent = 'k=' + knnK + ' — ★에서 가장 가까운 ' + knnK + '장이 연결되었습니다. 다수결을 예상해 보세요.';
+  };
+  window.knnNext = function () {
+    knnIdx = (knnIdx + 1) % TESTS.length;
+    knnDraw();
+    var m = document.getElementById('knn-msg');
+    m.className = 'wg-msg';
+    m.textContent = '새 카드(★)가 나왔습니다 (' + (knnIdx + 1) + '/' + TESTS.length + '). 어느 쪽일까요?';
+  };
+  window.knnGuess = function (g) {
+    var r = knnMajority();
+    var name = r.maj === 'A' ? '🔵 도서관 앞' : '🟠 매점 앞';
+    var m = document.getElementById('knn-msg');
+    var ok = g === r.maj;
+    m.className = 'wg-msg ' + (ok ? 'good' : 'bad');
+    m.innerHTML = 'k=' + knnK + ' 다수결: 🔵 ' + r.a + '표 vs 🟠 ' + r.b + '표 → <b>' + name + '</b> · ' +
+      (ok ? '정답! 다수결과 같았습니다. 🎉' : '아쉽습니다 — KNN은 이렇게 이웃의 다수결로 판정합니다.') + TESTS[knnIdx].hint;
+  };
+
+  /* ---------- ② K-means 실습 ---------- */
+  var KM_PTS = [[12,14],[18,24],[26,12],[22,30],[30,20],[14,32],[28,28],[62,12],[70,20],[78,10],[66,26],[82,22],[74,30],[88,16],[40,48],[48,58],[56,50],[44,64],[58,62],[36,56],[52,44]];
+  var KM_INIT = [[30,40],[44,28],[58,40]];
+  var KM_COL = ['#2E75B6', '#F77F00', '#1E8449'];
+  var kmC, kmAsn, kmIter, kmPhase, kmTimer = null;
+  function kmDraw() {
+    var svg = document.getElementById('km-svg');
+    if (!svg) return;
+    svg.innerHTML = '';
+    KM_PTS.forEach(function (p, i) {
+      var col = kmAsn[i] === -1 ? '#9DB0C2' : KM_COL[kmAsn[i]];
+      el('circle', { cx: sx(p[0]), cy: sy(p[1]), r: 7, fill: col, stroke: '#fff', 'stroke-width': 1.5 }, svg);
+    });
+    kmC.forEach(function (c, j) {
+      el('rect', { x: sx(c[0]) - 9, y: sy(c[1]) - 2.5, width: 18, height: 5, fill: KM_COL[j], stroke: '#14213D', 'stroke-width': 1 }, svg);
+      el('rect', { x: sx(c[0]) - 2.5, y: sy(c[1]) - 9, width: 5, height: 18, fill: KM_COL[j], stroke: '#14213D', 'stroke-width': 1 }, svg);
+    });
+  }
+  function kmJ() {
+    var J = 0;
+    KM_PTS.forEach(function (p, i) {
+      if (kmAsn[i] === -1) return;
+      var c = kmC[kmAsn[i]];
+      J += Math.pow(p[0] - c[0], 2) + Math.pow(p[1] - c[1], 2);
+    });
+    return Math.round(J);
+  }
+  function kmMsgSet(txt, cls) {
+    var m = document.getElementById('km-msg');
+    m.className = 'wg-msg' + (cls ? ' ' + cls : '');
+    m.innerHTML = txt;
+  }
+  window.kmReset = function () {
+    if (kmTimer) { clearInterval(kmTimer); kmTimer = null; }
+    kmC = KM_INIT.map(function (c) { return c.slice(); });
+    kmAsn = KM_PTS.map(function () { return -1; });
+    kmIter = 0; kmPhase = 'assign';
+    kmDraw();
+    kmMsgSet('반복 0회 · J = — (① 할당부터 눌러 보세요)');
+  };
+  window.kmAssign = function () {
+    if (kmPhase !== 'assign') { kmMsgSet('지금은 ② 중심 이동 차례입니다.'); return false; }
+    KM_PTS.forEach(function (p, i) {
+      var best = 0, bd = 1e9;
+      kmC.forEach(function (c, j) {
+        var d = Math.pow(p[0] - c[0], 2) + Math.pow(p[1] - c[1], 2);
+        if (d < bd) { bd = d; best = j; }
+      });
+      kmAsn[i] = best;
+    });
+    kmPhase = 'update';
+    kmDraw();
+    kmMsgSet('반복 ' + kmIter + '회 · 각 점을 가장 가까운 중심 색으로 칠했습니다 · <b>J = ' + kmJ() + '</b> → 이제 ② 중심 이동');
+    return true;
+  };
+  window.kmUpdate = function () {
+    if (kmPhase !== 'update') { kmMsgSet('지금은 ① 할당 차례입니다.'); return false; }
+    var moved = 0;
+    kmC.forEach(function (c, j) {
+      var xs = 0, ys = 0, n = 0;
+      KM_PTS.forEach(function (p, i) { if (kmAsn[i] === j) { xs += p[0]; ys += p[1]; n++; } });
+      if (n > 0) {
+        var nx = xs / n, ny = ys / n;
+        moved += Math.abs(nx - c[0]) + Math.abs(ny - c[1]);
+        c[0] = nx; c[1] = ny;
+      }
+    });
+    kmIter++; kmPhase = 'assign';
+    kmDraw();
+    if (moved < 0.5) {
+      kmMsgSet('반복 ' + kmIter + '회 · <b>수렴 완료!</b> 중심이 더 움직이지 않습니다 · 최종 J = ' + kmJ() + ' — 세 묶음이 곧 K-means의 답입니다. 🎉', 'good');
+      return false;
+    }
+    kmMsgSet('반복 ' + kmIter + '회 · 중심(✚)을 소속 점들의 평균으로 옮겼습니다 · J = ' + kmJ() + ' → 다시 ① 할당');
+    return true;
+  };
+  window.kmAuto = function () {
+    if (kmTimer) return;
+    kmReset();
+    kmTimer = setInterval(function () {
+      var go = (kmPhase === 'assign') ? kmAssign() : kmUpdate();
+      if (go === false && kmPhase === 'assign') { clearInterval(kmTimer); kmTimer = null; }
+      if (kmIter > 20) { clearInterval(kmTimer); kmTimer = null; }
+    }, 550);
+  };
+
+  /* ---------- ③ 모델 선택 판단 훈련 ---------- */
+  var QUIZ = [
+    { q: '내년 여름, 대여소별 공공자전거 수요량이 몇 대일지 미리 알고 싶다.', a: 0, why: '숫자를 예측하는 문제 → 회귀. 실제로 자전거 팀은 군집 후 군집별 회귀(XGBoost)로 수요를 예측했습니다.' },
+    { q: '새로 생긴 버스정류장이 "폭염 취약"인지 아닌지 판정하고 싶다.', a: 1, why: '어느 쪽에 속하는지 가리는 문제 → KNN·분류. 폭염 팀이 정류장 취약 여부 판정에 쓴 방식입니다.' },
+    { q: '성격이 비슷한 교실끼리 묶어 Wi-Fi 부하 유형을 찾고 싶다. 정답 라벨은 없다.', a: 2, why: '정답 없이 비슷한 것끼리 묶기 → K-means 군집. Wi-Fi 팀이 병목 교실 9곳을 찾은 방법입니다.' },
+    { q: '폐의약품 수거함 20곳을 어떤 순서로 돌아야 이동 거리가 가장 짧을까?', a: 3, why: '순서·경로의 문제 → 그래프·최적화. 폐의약품 팀이 순회 경로를 설계한 방식입니다.' },
+    { q: 'CCTV가 못 보는 공백 지대를 지도에서 찾아내고 싶다.', a: 2, why: '위치를 묶어 중심에서 먼 곳을 찾기 → 군집. CCTV 사각지대 팀의 접근입니다.' },
+    { q: '등굣길 후보 경로 중 위험 점수가 가장 낮은 길을 추천하고 싶다.', a: 3, why: '경로 선택 → 그래프·최적화. 통학로 팀은 위험도를 간선 가중치로 두고 최적 경로를 찾았습니다.' },
+    { q: '동시 접속 기기 수가 늘면 응답 지연이 얼마나 커지는지 예측선을 긋고 싶다.', a: 0, why: '두 변수 관계로 수치 예측 → 회귀. 바로 아래 4차시 실습기에서 직접 해 봅니다.' },
+    { q: '민원 사진을 "불법 주정차"와 "적치물" 중 하나로 자동 분류하고 싶다.', a: 1, why: '범주를 가리는 문제 → 분류(KNN 계열). 이미지가 커지면 CNN으로 확장되는 갈래입니다.' }
+  ];
+  var qIdx = 0, qScore = 0, qDone = false, qLock = false;
+  function quizShow() {
+    document.getElementById('quiz-q').textContent = 'Q' + (qIdx + 1) + '. ' + QUIZ[qIdx].q;
+    document.getElementById('quiz-score').textContent = '점수 ' + qScore + ' / ' + QUIZ.length + ' · 문제 ' + (qIdx + 1) + '/' + QUIZ.length;
+  }
+  window.quizReset = function () {
+    qIdx = 0; qScore = 0; qDone = false; qLock = false;
+    var m = document.getElementById('quiz-msg');
+    m.className = 'wg-msg';
+    m.textContent = '문제를 읽고 알맞은 모델을 고르세요. 실제 선배 팀 사례로 해설이 이어집니다.';
+    quizShow();
+  };
+  window.quizAns = function (i) {
+    if (qDone || qLock) return;
+    var cur = QUIZ[qIdx];
+    var ok = i === cur.a;
+    if (ok) qScore++;
+    var names = ['📈 회귀', '🏷 KNN·분류', '🫧 K-means 군집', '🕸 그래프·최적화'];
+    var m = document.getElementById('quiz-msg');
+    m.className = 'wg-msg ' + (ok ? 'good' : 'bad');
+    m.innerHTML = (ok ? '⭕ 정답! ' : '❌ 정답은 <b>' + names[cur.a] + '</b> — ') + cur.why;
+    qLock = true;
+    if (qIdx === QUIZ.length - 1) {
+      qDone = true;
+      setTimeout(function () {
+        m.className = 'wg-msg good';
+        m.innerHTML = '🎓 완료! 최종 점수 <b>' + qScore + ' / ' + QUIZ.length + '</b> — 이제 활동지③에 우리 팀 문제와 모델을 적어 보세요. <button class="wg-btn" onclick="quizReset()">처음부터 ⟲</button>';
+        document.getElementById('quiz-score').textContent = '점수 ' + qScore + ' / ' + QUIZ.length + ' · 완료';
+      }, 1900);
+    } else {
+      setTimeout(function () { qIdx++; qLock = false; quizShow(); }, 1900);
+    }
+    document.getElementById('quiz-score').textContent = '점수 ' + qScore + ' / ' + QUIZ.length + ' · 문제 ' + (qIdx + 1) + '/' + QUIZ.length;
+  };
+
+  /* ---------- ④ 데이터 분석 실습기 (평균·상관·회귀) ---------- */
+  var REG_PRESETS = [
+    { x: [5, 12, 18, 25, 31, 38, 44, 50], y: [130, 170, 250, 290, 380, 410, 480, 530] },
+    { x: [5, 12, 18, 25, 31, 38, 44, 50], y: [380, 150, 470, 220, 330, 180, 460, 240] }
+  ];
+  function regRows() {
+    return Array.prototype.slice.call(document.querySelectorAll('#reg-table tbody tr'));
+  }
+  window.regPreset = function (i) {
+    var tb = document.querySelector('#reg-table tbody');
+    tb.innerHTML = '';
+    REG_PRESETS[i].x.forEach(function (x, r) {
+      var tr = document.createElement('tr');
+      tr.innerHTML = '<td><input type="number" value="' + x + '" oninput="regCalc()"></td>' +
+                     '<td><input type="number" value="' + REG_PRESETS[i].y[r] + '" oninput="regCalc()"></td>';
+      tb.appendChild(tr);
+    });
+    regCalc();
+  };
+  function regData() {
+    var xs = [], ys = [];
+    regRows().forEach(function (tr) {
+      var ins = tr.querySelectorAll('input');
+      var x = parseFloat(ins[0].value), y = parseFloat(ins[1].value);
+      if (!isNaN(x) && !isNaN(y)) { xs.push(x); ys.push(y); }
+    });
+    return { xs: xs, ys: ys };
+  }
+  var regA = 0, regB = 0;
+  window.regCalc = function () {
+    var d = regData(), n = d.xs.length;
+    var stats = document.getElementById('reg-stats');
+    var msg = document.getElementById('reg-msg');
+    var svg = document.getElementById('reg-svg');
+    if (n < 2) { stats.innerHTML = ''; msg.textContent = '값을 2개 이상 입력하세요.'; return; }
+    var mx = d.xs.reduce(function (a, b) { return a + b; }, 0) / n;
+    var my = d.ys.reduce(function (a, b) { return a + b; }, 0) / n;
+    var sxy = 0, sxx = 0, syy = 0;
+    for (var i = 0; i < n; i++) {
+      sxy += (d.xs[i] - mx) * (d.ys[i] - my);
+      sxx += Math.pow(d.xs[i] - mx, 2);
+      syy += Math.pow(d.ys[i] - my, 2);
+    }
+    var r = (sxx > 0 && syy > 0) ? sxy / Math.sqrt(sxx * syy) : 0;
+    regA = sxx > 0 ? sxy / sxx : 0;
+    regB = my - regA * mx;
+    stats.innerHTML =
+      '<span>n = ' + n + '</span>' +
+      '<span>x̄ = ' + mx.toFixed(1) + '</span>' +
+      '<span>ȳ = ' + my.toFixed(1) + '</span>' +
+      '<span>상관계수 r = ' + r.toFixed(3) + '</span>' +
+      '<span>회귀식 ŷ = ' + regA.toFixed(2) + 'x + ' + regB.toFixed(1) + '</span>' +
+      '<span>R² = ' + (r * r).toFixed(3) + '</span>';
+    var ar = Math.abs(r);
+    var m1;
+    if (ar >= 0.8) m1 = '해석: |r| ≥ 0.8 — <b>강한 상관</b>입니다. 회귀선으로 예측할 만합니다. 스프레드시트에서는 CORREL·SLOPE·INTERCEPT 함수가 같은 값을 냅니다.';
+    else if (ar >= 0.4) m1 = '해석: 중간 정도의 상관입니다. 예측선은 참고용 — 다른 변수(교란 요인)를 의심해 보세요.';
+    else m1 = '해석: |r| < 0.4 — <b>상관이 약합니다.</b> 이 데이터로 직선 예측을 주장하면 "숫자 없는 주장"만큼 위험합니다. 변수를 바꾸거나 데이터를 다시 모아야 한다는 신호입니다.';
+    msg.className = 'wg-msg' + (ar >= 0.8 ? ' good' : (ar < 0.4 ? ' bad' : ''));
+    msg.innerHTML = m1;
+    /* 산점도 */
+    svg.innerHTML = '';
+    var xmin = Math.min.apply(null, d.xs), xmax = Math.max.apply(null, d.xs);
+    var ymin = Math.min.apply(null, d.ys), ymax = Math.max.apply(null, d.ys);
+    if (xmax === xmin) xmax = xmin + 1;
+    if (ymax === ymin) ymax = ymin + 1;
+    var px = function (x) { return 36 + (x - xmin) / (xmax - xmin) * 288; };
+    var py = function (y) { return 218 - (y - ymin) / (ymax - ymin) * 190; };
+    el('line', { x1: 36, y1: 218, x2: 330, y2: 218, stroke: '#B9CCDD', 'stroke-width': 1.5 }, svg);
+    el('line', { x1: 36, y1: 218, x2: 36, y2: 16, stroke: '#B9CCDD', 'stroke-width': 1.5 }, svg);
+    el('text', { x: 328, y: 236, 'text-anchor': 'end', 'font-size': 10.5, fill: '#8896A6' }, svg).textContent = 'x: 동시 접속(대)';
+    el('text', { x: 8, y: 14, 'font-size': 10.5, fill: '#8896A6' }, svg).textContent = 'y: 지연(ms)';
+    el('line', { x1: px(xmin), y1: py(regA * xmin + regB), x2: px(xmax), y2: py(regA * xmax + regB), stroke: '#F77F00', 'stroke-width': 2.5 }, svg);
+    for (var j = 0; j < n; j++) {
+      el('circle', { cx: px(d.xs[j]), cy: py(d.ys[j]), r: 6, fill: '#2E75B6', stroke: '#fff', 'stroke-width': 1.5 }, svg);
+    }
+  };
+  window.regPredict = function () {
+    var x = parseFloat(document.getElementById('reg-x').value);
+    var out = document.getElementById('reg-yhat');
+    if (isNaN(x)) { out.textContent = '—'; return; }
+    out.textContent = (regA * x + regB).toFixed(0) + ' ms';
+  };
+
+  /* ---------- 초기화 ---------- */
+  knnDraw();
+  kmReset();
+  quizReset();
+  regPreset(0);
+})();
+</script>
