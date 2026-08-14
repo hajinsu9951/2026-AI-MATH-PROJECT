@@ -371,7 +371,7 @@ function lbFrameClose() {
 }
 
 function lbOpen(el) {
-  lbList = Array.prototype.slice.call(document.querySelectorAll('[data-big], .poster-strip figure'));
+  lbList = Array.prototype.slice.call(document.querySelectorAll('[data-big], .poster-strip figure, .ph-grid figure'));
   lbIdx = lbList.indexOf(el);
   if (lbIdx < 0) { lbList.push(el); lbIdx = lbList.length - 1; }
   lbShow();
