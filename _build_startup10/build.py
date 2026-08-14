@@ -48,7 +48,6 @@ for ph, f, m in [
     ("{{B64_SW4}}", "sw4.jpg", "jpeg"),
     ("{{B64_SW5}}", "sw5.jpg", "jpeg"),
     ("{{B64_SW6}}", "sw6.jpg", "jpeg"),
-    ("{{B64_SW7}}", "sw7.jpg", "jpeg"),
     ("{{B64_SW8}}", "sw8.jpg", "jpeg"),
     ("{{B64_PH01}}", "ph01.jpg", "jpeg"),
     ("{{B64_PH02}}", "ph02.jpg", "jpeg"),
