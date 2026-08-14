@@ -377,13 +377,29 @@ function lbOpen(el) {
   lbShow();
   return false;
 }
+var lbRepList = [], lbRepIdx = 0;
 function lbReport(el) {
   var view = el.getAttribute('data-view') || '';
   if (!view) return false;
+  var container = el.closest('.thumb-grid, .hub-grid');
+  if (container) {
+    lbRepList = Array.prototype.filter.call(container.querySelectorAll('a[data-view]'), function (c) {
+      return c.getAttribute('data-view');
+    });
+  } else lbRepList = [el];
+  lbRepIdx = lbRepList.indexOf(el);
+  if (lbRepIdx < 0) { lbRepList = [el]; lbRepIdx = 0; }
+  lbRepShow();
+  return false;
+}
+function lbRepShow() {
+  var el = lbRepList[lbRepIdx];
+  if (!el) return;
   var lb = document.getElementById('lb');
   lbList = []; lbIdx = 0;
   document.getElementById('lb-img').style.display = 'none';
-  document.getElementById('lb-title').textContent = el.getAttribute('data-title') || '';
+  var cnt = lbRepList.length > 1 ? '  (' + (lbRepIdx + 1) + ' / ' + lbRepList.length + ')' : '';
+  document.getElementById('lb-title').textContent = (el.getAttribute('data-title') || '') + cnt;
   var tier = el.getAttribute('data-tier') || '';
   var tEl = document.getElementById('lb-tier');
   if (tier) {
@@ -394,12 +410,11 @@ function lbReport(el) {
   var desc = el.getAttribute('data-desc') || '';
   document.getElementById('lb-desc').textContent = desc ? ' · ' + desc : '';
   document.getElementById('lb-href').style.display = 'none';
-  lbViewUrl = view;
-  document.getElementById('lb-frame').src = view;
+  lbViewUrl = el.getAttribute('data-view');
+  document.getElementById('lb-frame').src = lbViewUrl;
   document.getElementById('lb-frame-wrap').style.display = 'block';
   lb.classList.add('report');
   lb.classList.add('on');
-  return false;
 }
 function lbShow() {
   var el = lbList[lbIdx];
@@ -428,7 +443,17 @@ function lbShow() {
   lbFrameClose();
   document.getElementById('lb').classList.add('on');
 }
-function lbStep(d) { if (!lbList.length) return; lbIdx = (lbIdx + d + lbList.length) % lbList.length; lbShow(); }
+function lbStep(d) {
+  if (document.getElementById('lb').classList.contains('report')) {
+    if (lbRepList.length < 2) return;
+    lbRepIdx = (lbRepIdx + d + lbRepList.length) % lbRepList.length;
+    lbRepShow();
+    return;
+  }
+  if (!lbList.length) return;
+  lbIdx = (lbIdx + d + lbList.length) % lbList.length;
+  lbShow();
+}
 function lbClose() { lbFrameClose(); var lb = document.getElementById('lb'); lb.classList.remove('on'); lb.classList.remove('report'); }
 document.addEventListener('keydown', function (e) {
   var lb = document.getElementById('lb');
