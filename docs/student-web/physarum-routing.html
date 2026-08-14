@@ -1,0 +1,410 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <title>Physarum Optimal Routing Simulation</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <style>
+        body, html { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; background: #050505; font-family: 'Malgun Gothic', sans-serif; }
+        #map { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 1; }
+        #sim-canvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 5; pointer-events: none; }
+        
+        #ui-panel {
+            position: absolute; top: 20px; left: 20px; width: 360px;
+            background: rgba(12, 16, 24, 0.95); border: 1px solid #333; color: #fff;
+            padding: 20px; z-index: 100; border-radius: 8px; box-shadow: 0 4px 20px rgba(0,0,0,0.8);
+        }
+        h1 { font-size: 16px; margin: 0 0 10px 0; border-bottom: 1px solid #ffd700; padding-bottom: 10px; color: #ffd700; }
+        .desc { font-size: 12px; color: #bbb; margin-bottom: 15px; line-height: 1.5; }
+        
+        .phase-container { background: rgba(0,0,0,0.6); padding: 12px; border-radius: 4px; border: 1px solid #222; margin-bottom: 15px; }
+        .phase-step { display: flex; align-items: center; font-size: 12px; color: #555; margin-bottom: 8px; transition: all 0.3s; }
+        .phase-step.active { color: #ffd700; font-weight: bold; }
+        .phase-step.done { color: #4CAF50; }
+        .phase-dot { width: 10px; height: 10px; border-radius: 50%; background: #333; margin-right: 10px; }
+        .phase-step.active .phase-dot { background: #ffd700; box-shadow: 0 0 6px #ffd700; }
+        .phase-step.done .phase-dot { background: #4CAF50; }
+
+        .btn-group { display: flex; gap: 10px; margin-bottom: 10px; }
+        button { flex: 1; padding: 12px; border: none; font-weight: bold; font-size: 12px; border-radius: 4px; cursor: pointer; transition: all 0.2s; }
+        .btn-start { background: #ffd700; color: #000; }
+        .btn-start:hover { background: #e5c100; }
+        .btn-start:disabled { background: #666; color: #aaa; cursor: not-allowed; }
+        .btn-reset { background: #444; color: #fff; }
+        .btn-reset:hover { background: #555; }
+        .btn-result { width: 100%; background: #0056b3; color: #fff; padding: 12px; border-radius: 4px; border: none; cursor: pointer; font-weight: bold; }
+        .btn-result:hover { background: #004494; }
+
+        /* 결과 모달창 */
+        #result-modal {
+            display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
+            width: 600px; background: #fff; color: #333; z-index: 1000;
+            border-radius: 8px; box-shadow: 0 10px 40px rgba(0,0,0,0.7); overflow: hidden;
+        }
+        .modal-header { background: #0056b3; color: #fff; padding: 15px 20px; font-weight: bold; display: flex; justify-content: space-between; }
+        .modal-close { cursor: pointer; font-size: 18px; }
+        .modal-body { padding: 20px; max-height: 400px; overflow-y: auto; }
+        table { width: 100%; border-collapse: collapse; font-size: 12px; text-align: center; }
+        th, td { padding: 10px; border-bottom: 1px solid #ddd; }
+        th { background: #f4f4f4; color: #555; font-weight: bold; }
+        .positive { color: #d32f2f; font-weight: bold; }
+        .negative { color: #1976d2; font-weight: bold; }
+        #modal-backdrop { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); z-index: 999; }
+    </style>
+</head>
+<body>
+
+<div id="map"></div>
+<canvas id="sim-canvas"></canvas>
+
+<div id="ui-panel">
+    <h1>Physarum Optimal Routing</h1>
+    <p class="desc">실제 도로망(OSRM) 데이터를 기반으로 확산되며, 수요(P)에 따라 도관의 굵기가 확연하게 최적화됩니다.</p>
+    
+    <div class="phase-container">
+        <div id="phase-1" class="phase-step active"><div class="phase-dot"></div> 1. 탐색 : 실제 도로망을 따라 확산</div>
+        <div id="phase-2" class="phase-step"><div class="phase-dot"></div> 2. 발견 : 거점 융합 및 영양분 수송</div>
+        <div id="phase-3" class="phase-step"><div class="phase-dot"></div> 3. 가지치기 : 잉여/비효율 도로 수축</div>
+        <div id="phase-4" class="phase-step"><div class="phase-dot"></div> 4. 안정화 : 굵기 기반 최적 경로망 도출</div>
+    </div>
+
+    <div class="btn-group">
+        <button class="btn-start" id="btn-start" onclick="toggleSim()">데이터 로딩중...</button>
+        <button class="btn-reset" onclick="resetSim()">↺ 초기화</button>
+    </div>
+    <button class="btn-result" onclick="openModal()">📊 적정 거치대 분석 결과</button>
+</div>
+
+<div id="modal-backdrop" onclick="closeModal()"></div>
+<div id="result-modal">
+    <div class="modal-header">
+        <span>TASHU OPTIMAL RELOCATION ADVISORY</span>
+        <span class="modal-close" onclick="closeModal()">✖</span>
+    </div>
+    <div class="modal-body">
+        <table id="result-table">
+            <thead>
+                <tr>
+                    <th>행정동</th>
+                    <th>수요 확률 (P)</th>
+                    <th>현재 거치대</th>
+                    <th>적정 거치대</th>
+                    <th>재배치 권고량</th>
+                </tr>
+            </thead>
+            <tbody>
+                </tbody>
+        </table>
+    </div>
+</div>
+
+<script>
+const map = L.map('map', { zoomControl: false }).setView([36.3480, 127.3850], 13);
+L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png').addTo(map);
+const canvas = document.getElementById('sim-canvas');
+const ctx = canvas.getContext('2d');
+let width, height;
+
+// 1. 노드 데이터 세팅 (소수점 3자리 가중치 정확히 반영)
+const COEF = { intercept: -1.250, pop: 0.523, trans: 0.312, com: 0.185, pub: 0.246, usage: 0.618, center: 0.104 };
+let nodes = [
+    { id: 0, name: "둔산동", lat: 36.3512, lng: 127.3850, vars: [0.9, 0.9, 0.8, 0.8, 0.9, 0.9], current: 150 },
+    { id: 1, name: "탄방동", lat: 36.3441, lng: 127.3848, vars: [0.7, 0.8, 0.7, 0.6, 0.7, 0.6], current: 90 },
+    { id: 2, name: "만년동", lat: 36.3681, lng: 127.3785, vars: [0.5, 0.6, 0.5, 0.7, 0.6, 0.5], current: 60 },
+    { id: 3, name: "갈마동", lat: 36.3532, lng: 127.3713, vars: [0.6, 0.5, 0.6, 0.5, 0.5, 0.5], current: 80 },
+    { id: 4, name: "용문동", lat: 36.3382, lng: 127.3927, vars: [0.4, 0.7, 0.5, 0.4, 0.5, 0.6], current: 50 },
+    { id: 5, name: "월평동", lat: 36.3578, lng: 127.3643, vars: [0.6, 0.6, 0.5, 0.5, 0.6, 0.5], current: 70 },
+    { id: 6, name: "오정동", lat: 36.3533, lng: 127.4147, vars: [0.3, 0.4, 0.4, 0.3, 0.2, 0.3], current: 40 },
+    { id: 7, name: "괴정동", lat: 36.3371, lng: 127.3815, vars: [0.4, 0.5, 0.6, 0.4, 0.4, 0.5], current: 55 },
+    { id: 8, name: "내동",   lat: 36.3355, lng: 127.3688, vars: [0.3, 0.3, 0.3, 0.4, 0.3, 0.3], current: 35 },
+    { id: 9, name: "가장동", lat: 36.3314, lng: 127.3765, vars: [0.2, 0.3, 0.2, 0.3, 0.2, 0.3], current: 30 },
+    { id: 10,name: "대화동", lat: 36.3675, lng: 127.4110, vars: [0.2, 0.2, 0.3, 0.2, 0.1, 0.2], current: 20 },
+    { id: 11,name: "목동",   lat: 36.3308, lng: 127.4105, vars: [0.2, 0.4, 0.2, 0.3, 0.2, 0.4], current: 25 }
+];
+
+let totalBikes = 0, sumProb = 0;
+// 로지스틱 확률 연산 및 총합 구하기
+nodes.forEach(n => {
+    let z = COEF.intercept + (n.vars[0]*COEF.pop) + (n.vars[1]*COEF.trans) + (n.vars[2]*COEF.com) + (n.vars[3]*COEF.pub) + (n.vars[4]*COEF.usage) + (n.vars[5]*COEF.center);
+    n.p = 1 / (1 + Math.exp(-z));
+    sumProb += n.p; 
+    totalBikes += n.current;
+});
+
+// 재배치 권고량 계산 (적정 거치대 산출)
+nodes.forEach(n => {
+    n.req = Math.round(totalBikes * (n.p / sumProb));
+    n.diff = n.req - n.current;
+});
+
+// 2. OSRM을 이용한 실제 도로망 구축 로직
+let edges = [];
+let isRunning = false;
+let frameCount = 0;
+let currentPhase = 1;
+let networkReady = false;
+
+function createStraightPath(n1, n2) {
+    let path = [];
+    for(let i=0; i<=10; i++) {
+        path.push({ lat: n1.lat + (n2.lat - n1.lat) * (i/10), lng: n1.lng + (n2.lng - n1.lng) * (i/10) });
+    }
+    return path;
+}
+
+async function fetchRoadGeometry(n1, n2) {
+    try {
+        const url = `https://router.project-osrm.org/route/v1/driving/${n1.lng},${n1.lat};${n2.lng},${n2.lat}?geometries=geojson&overview=full`;
+        const res = await fetch(url);
+        const data = await res.json();
+        if (data.routes && data.routes[0]) {
+            return data.routes[0].geometry.coordinates.map(c => ({ lat: c[1], lng: c[0] }));
+        }
+    } catch (e) {
+        console.warn("라우팅 API 호출 실패, 기본 직선으로 대체", e);
+    }
+    return createStraightPath(n1, n2);
+}
+
+async function buildNetwork() {
+    edges = [];
+    let promises = [];
+    for(let i=0; i<nodes.length; i++) {
+        for(let j=i+1; j<nodes.length; j++) {
+            let dist = Math.hypot(nodes[i].lat - nodes[j].lat, nodes[i].lng - nodes[j].lng);
+            if(dist < 0.055) { 
+                let p = fetchRoadGeometry(nodes[i], nodes[j]).then(path => {
+                    let avgP = (nodes[i].p + nodes[j].p) / 2;
+                    edges.push({ s: nodes[i], t: nodes[j], isReal: true, dist: dist, growth: 0, strength: 0, path: path, avgP: avgP });
+                });
+                promises.push(p);
+            }
+        }
+    }
+    nodes.forEach(n => {
+        for(let i=0; i<2; i++) {
+            let angle = Math.random() * Math.PI * 2;
+            let len = 0.015 + Math.random() * 0.015;
+            let dummyNode = { lat: n.lat + Math.sin(angle)*len, lng: n.lng + Math.cos(angle)*len, p: 0 };
+            edges.push({ s: n, t: dummyNode, isReal: false, dist: len, growth: 0, strength: 0, path: createStraightPath(n, dummyNode), avgP: 0 });
+        }
+    });
+
+    await Promise.all(promises);
+    networkReady = true;
+    const btn = document.getElementById('btn-start');
+    btn.innerText = "▶ 시뮬레이션 시작";
+    btn.disabled = false;
+}
+
+// 3. 렌더링 루프 및 애니메이션
+function updatePhaseUI(phase) {
+    for(let i=1; i<=4; i++) {
+        let el = document.getElementById(`phase-${i}`);
+        el.className = 'phase-step' + (i < phase ? ' done' : (i === phase ? ' active' : ''));
+    }
+}
+
+function initSim() {
+    if(!networkReady) return;
+    nodes.forEach(n => n.active = false);
+    let sortedNodes = [...nodes].sort((a, b) => b.p - a.p);
+    sortedNodes[0].active = true;
+    sortedNodes[1].active = true;
+    edges.forEach(e => { e.growth = 0; e.strength = 0; });
+    
+    frameCount = 0;
+    currentPhase = 1;
+    updatePhaseUI(1);
+}
+
+function loop() {
+    if(!isRunning) return;
+    frameCount++;
+    ctx.clearRect(0, 0, width, height);
+
+    if (frameCount === 300) { currentPhase = 2; updatePhaseUI(2); }
+    if (frameCount === 700) { currentPhase = 3; updatePhaseUI(3); }
+    if (frameCount === 1100) { currentPhase = 4; updatePhaseUI(4); }
+
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+
+    edges.forEach(e => {
+        let isConnectedToActive = e.s.active || (e.isReal && e.t.active);
+        
+        if (currentPhase <= 2) {
+            if (isConnectedToActive) {
+                e.growth += (0.005 / Math.max(e.dist, 0.01));
+                if (e.growth >= 1) {
+                    e.growth = 1;
+                    if (e.isReal) { e.s.active = true; e.t.active = true; }
+                }
+                e.strength = Math.min(e.strength + 0.02, 0.8);
+            }
+        }
+        
+        if (currentPhase === 3) {
+            if (!e.isReal || e.avgP < 0.45) {
+                e.growth -= 0.005;
+                e.strength -= 0.01;
+            } else {
+                e.strength += 0.01;
+            }
+        }
+
+        if (currentPhase === 4) {
+            if (e.isReal && e.growth > 0.9) {
+                e.strength = 1.0; 
+            } else {
+                e.growth -= 0.02;
+                e.strength -= 0.05;
+            }
+        }
+
+        e.growth = Math.max(0, Math.min(e.growth, 1));
+        e.strength = Math.max(0, Math.min(e.strength, 1));
+
+        // 경로 시각화
+        if (e.growth > 0 && e.strength > 0) {
+            ctx.beginPath();
+            let startPt = map.latLngToContainerPoint([e.path[0].lat, e.path[0].lng]);
+            ctx.moveTo(startPt.x, startPt.y);
+            
+            let totalPoints = e.path.length - 1;
+            let currentPointIndex = Math.floor(e.growth * totalPoints);
+            let remainder = (e.growth * totalPoints) - currentPointIndex;
+
+            for(let i=1; i<=currentPointIndex; i++) {
+                let pt = map.latLngToContainerPoint([e.path[i].lat, e.path[i].lng]);
+                ctx.lineTo(pt.x, pt.y);
+            }
+
+            if (currentPointIndex < totalPoints && remainder > 0) {
+                let pt1 = map.latLngToContainerPoint([e.path[currentPointIndex].lat, e.path[currentPointIndex].lng]);
+                let pt2 = map.latLngToContainerPoint([e.path[currentPointIndex+1].lat, e.path[currentPointIndex+1].lng]);
+                let curX = pt1.x + (pt2.x - pt1.x) * remainder;
+                let curY = pt1.y + (pt2.y - pt1.y) * remainder;
+                ctx.lineTo(curX, curY);
+            }
+            
+            let targetThickness = e.isReal ? (e.avgP * 12) : 2.0; 
+            if (currentPhase >= 3 && !e.isReal) targetThickness = 0.5;
+            
+            ctx.strokeStyle = `rgba(255, 215, 0, ${e.strength})`;
+            ctx.lineWidth = targetThickness * e.strength;
+            
+            if (currentPhase === 4 && e.isReal) {
+                ctx.shadowBlur = 10 * e.strength;
+                ctx.shadowColor = "rgba(255, 215, 0, 0.8)";
+            } else {
+                ctx.shadowBlur = 0;
+            }
+            
+            ctx.stroke();
+        }
+    });
+
+    ctx.shadowBlur = 0;
+    nodes.forEach(n => {
+        let p = map.latLngToContainerPoint([n.lat, n.lng]);
+        let radius = 5 + (n.p * 15);
+        
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, radius, 0, Math.PI*2);
+        ctx.fillStyle = n.active ? `rgba(255, 215, 0, ${currentPhase===4 ? 0.9 : 0.5})` : "rgba(30, 30, 30, 0.8)";
+        ctx.fill();
+        ctx.strokeStyle = n.active ? "#fff" : "#555";
+        ctx.lineWidth = 2;
+        ctx.stroke();
+        
+        if (n.active || currentPhase >= 3) {
+            ctx.fillStyle = "#fff";
+            ctx.font = "bold 13px 'Malgun Gothic'";
+            ctx.fillText(n.name, p.x + radius + 6, p.y);
+            ctx.fillStyle = "#aaa";
+            ctx.font = "11px Tahoma";
+            ctx.fillText(`P: ${(n.p*100).toFixed(1)}%`, p.x + radius + 6, p.y + 14);
+        }
+    });
+
+    requestAnimationFrame(loop);
+}
+
+// 4. 이벤트 컨트롤 및 권고량 표 렌더링
+function syncCoords() {
+    width = canvas.width = window.innerWidth;
+    height = canvas.height = window.innerHeight;
+    if(!isRunning && frameCount === 0 && networkReady) { 
+        initSim(); loop(); setTimeout(()=>isRunning=false, 10); 
+    }
+}
+
+function toggleSim() {
+    if(!networkReady) return;
+    isRunning = !isRunning;
+    const btn = document.getElementById('btn-start');
+    if(isRunning) {
+        if(currentPhase === 4 && frameCount > 1100) { initSim(); } 
+        btn.innerHTML = "❚❚ 일시정지";
+        btn.style.background = "#fff";
+        loop();
+    } else {
+        btn.innerHTML = "▶ 계속하기";
+        btn.style.background = "#ffd700";
+    }
+}
+
+function resetSim() {
+    if(!networkReady) return;
+    isRunning = false;
+    document.getElementById('btn-start').innerHTML = "▶ 시뮬레이션 시작";
+    document.getElementById('btn-start').style.background = "#ffd700";
+    initSim();
+    ctx.clearRect(0, 0, width, height);
+    syncCoords();
+}
+
+// ★ 해결된 권고량 도출 표 렌더링 함수
+function openModal() {
+    const tbody = document.querySelector('#result-table tbody');
+    tbody.innerHTML = '';
+    
+    // 차이값(diff) 내림차순 정렬
+    let sortedNodes = [...nodes].sort((a,b) => b.diff - a.diff);
+    
+    sortedNodes.forEach(n => {
+        let diffStr = n.diff > 0 ? `<span class="positive">+${n.diff}대 추가</span>` 
+                    : (n.diff < 0 ? `<span class="negative">${n.diff}대 감소</span>` : `유지`);
+                    
+        let tr = `<tr>
+            <td>${n.name}</td>
+            <td>${(n.p*100).toFixed(1)}%</td>
+            <td>${n.current}</td>
+            <td>${n.req}</td>
+            <td>${diffStr}</td>
+        </tr>`;
+        tbody.innerHTML += tr;
+    });
+    
+    document.getElementById('modal-backdrop').style.display = 'block';
+    document.getElementById('result-modal').style.display = 'block';
+}
+
+function closeModal() {
+    document.getElementById('modal-backdrop').style.display = 'none';
+    document.getElementById('result-modal').style.display = 'none';
+}
+
+// 실행 시 바로 도로 데이터 빌드 시작
+window.onload = () => {
+    document.getElementById('btn-start').disabled = true;
+    buildNetwork().then(syncCoords);
+};
+
+map.on('move viewreset zoom', syncCoords);
+window.addEventListener('resize', syncCoords);
+</script>
+</body>
+</html>

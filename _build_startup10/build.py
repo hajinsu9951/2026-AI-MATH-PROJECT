@@ -42,6 +42,14 @@ for ph, f, m in [
     ("{{B64_TIKTOK}}", "tiktok.jpg", "jpeg"),
     ("{{B64_CVS1}}", "cvs1.jpg", "jpeg"),
     ("{{B64_CVS2}}", "cvs2.jpg", "jpeg"),
+    ("{{B64_SW1}}", "sw1.jpg", "jpeg"),
+    ("{{B64_SW2}}", "sw2.jpg", "jpeg"),
+    ("{{B64_SW3}}", "sw3.jpg", "jpeg"),
+    ("{{B64_SW4}}", "sw4.jpg", "jpeg"),
+    ("{{B64_SW5}}", "sw5.jpg", "jpeg"),
+    ("{{B64_SW6}}", "sw6.jpg", "jpeg"),
+    ("{{B64_SW7}}", "sw7.jpg", "jpeg"),
+    ("{{B64_SW8}}", "sw8.jpg", "jpeg"),
 ]:
     assert ph in html, f"placeholder missing: {ph}"
     html = html.replace(ph, b64(f, m))

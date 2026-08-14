@@ -7,6 +7,9 @@ s = open(os.path.join(DOCS, 'startup10.html'), encoding='utf-8').read()
 
 s = s.replace('<a class="pk" href="https://github.com/hajinsu9951/2026-AI-MATH-PROJECT" target="_blank" rel="noopener">💻 GitHub 저장소(사이트·데이터 소스)</a>', '')
 s = re.sub(r'<a class="pk" href="https://github\.com/[^"]*"[^>]*>[^<]*</a>', '', s)  # 제출용: 학생 팀 저장소 포함 깃허브 링크 전체 제거
+s = re.sub(r'<a class="hub-card gh-card"[\s\S]*?</a>', '', s)  # 제출용: 깃허브 산출물 카드 제거(웹 카드는 유지)
+s = s.replace('학생이 직접 배포한 GitHub Pages 라이브 서비스', '학생이 직접 배포한 라이브 웹 서비스')
+s = s.replace('학생 깃허브·웹 산출물 — 클릭하면 바로 실행됩니다', '학생 웹 산출물 — 클릭하면 바로 실행됩니다')
 s = s.replace('보고서 70건 전수 판독 결과 팀 자체 깃허브 저장소는 위 1건이며, 그 외 산출물은', '학생 산출물은')
 s = re.sub(r'<a class="xp-btn" href="https://github\.com/hajinsu9951/2026-AI-MATH-PROJECT"[^>]*>[^<]*</a>', '', s)
 s = s.replace(' 전체 코드·아카이브는 하단 GitHub 버튼에서 볼 수 있습니다.', ' 전체 산출물은 하단 성과 아카이브에서 열람할 수 있습니다.')
