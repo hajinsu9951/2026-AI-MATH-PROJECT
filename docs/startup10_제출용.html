@@ -202,8 +202,29 @@
   }
   .t-head .t-title { font-weight: 800; font-size: 15px; color: var(--navy); flex: 1; min-width: 200px; }
   .t-head .t-title small { display: block; font-weight: 600; color: var(--sub); font-size: 12.5px; margin-top: 2px; }
-  .t-head .t-arrow { color: var(--sub); font-size: 13px; transition: transform .25s; }
-  .t-card.open .t-head .t-arrow { transform: rotate(180deg); }
+  .t-head .t-arrow { font-size: 0; display: inline-flex; align-items: center; white-space: nowrap; }
+  .t-head .t-arrow::before { content: '눌러서 펼치기'; font-size: 13px; margin-right: 6px; }
+  .t-head .t-arrow::after { content: '▼'; font-size: 12px; display: inline-block; transition: transform .25s; }
+  .t-card.open .t-head .t-arrow::before { content: '접기'; }
+  .t-card.open .t-head .t-arrow::after { transform: rotate(180deg); }
+  .t-card:not(.open) .t-head .t-arrow {
+    background: linear-gradient(135deg, #F77F00, #FFB83D); color: #fff; font-weight: 800;
+    padding: 7px 13px; border-radius: 999px; animation: tPulse 1.7s ease-in-out infinite;
+  }
+  .t-card.open .t-head .t-arrow { background: #EFF3F8; color: var(--sub); font-weight: 700; padding: 7px 13px; border-radius: 999px; }
+  @keyframes tPulse {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(247,127,0,.45); transform: scale(1); }
+    50% { box-shadow: 0 0 0 9px rgba(247,127,0,0); transform: scale(1.07); }
+  }
+  .t-card:not(.open) .t-head { position: relative; overflow: hidden; }
+  .t-card:not(.open) .t-head::after {
+    content: ''; position: absolute; top: 0; left: -70%; width: 50%; height: 100%;
+    background: linear-gradient(105deg, transparent 10%, rgba(255,209,102,.38) 50%, transparent 90%);
+    animation: tSheen 3.4s ease-in-out infinite; pointer-events: none;
+  }
+  @keyframes tSheen { 0% { left: -70%; } 60% { left: 130%; } 100% { left: 130%; } }
+  .t-card:not(.open) .t-head:hover { background: #FFF7EC; }
+  .t-card:not(.open) { border-color: #F4C28A; }
   .t-body { display: none; padding: 4px 20px 18px; border-top: 1px dashed var(--line); }
   .t-card.open .t-body { display: block; }
   .t-body h5 { font-size: 13.5px; color: var(--orange); font-weight: 800; margin: 14px 0 6px; letter-spacing: .3px; }
