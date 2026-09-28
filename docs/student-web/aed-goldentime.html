@@ -87,7 +87,8 @@ button.ghost{background:transparent;color:var(--ink);border:1px solid var(--line
 .leaflet-control-attribution{background:rgba(0,0,0,.5)!important;color:#555!important;font-size:9px!important;}
 .leaflet-control-attribution a{color:#777!important;}
 .capmode .hero{min-height:auto;padding:50px 0 70px;}
-</style></head>
+</style><style>.osm-dark{filter:invert(1) hue-rotate(180deg) grayscale(.75) brightness(.78) contrast(1.08)}</style>
+</head>
 <body>
 <div class="prog" id="prog"></div>
 <div class="nav"><b id="navn">00</b> / 04</div>
@@ -191,10 +192,10 @@ window.GAME={R:1954,K:30};
 </script>
 <script>
 const SEOUL=L.latLngBounds([[37.43,126.76],[37.705,127.19]]);
-const tileURL='https://{s}.basemaps.cartocdn.com/dark_nolabels/{z}/{x}/{y}{r}.png';
+const tileURL='https://tile.openstreetmap.org/{z}/{x}/{y}.png';
 function lerp(a,b,t){return a+(b-a)*t;}
 function covColor(v){let r,g,b;if(v<50){const t=v/50;r=lerp(229,242,t);g=lerp(72,201,t);b=lerp(77,76,t);}else{const t=(v-50)/50;r=lerp(242,55,t);g=lerp(201,201,t);b=lerp(76,138,t);}return `rgb(${r|0},${g|0},${b|0})`;}
-function mkMap(id){const m=L.map(id,{preferCanvas:true,zoomControl:false,attributionControl:true,maxBoundsViscosity:1,scrollWheelZoom:false});m.fitBounds(SEOUL);m.setMaxBounds(SEOUL.pad(.02));m.setMinZoom(m.getZoom());L.tileLayer(tileURL,{maxZoom:17}).addTo(m);m.attributionControl.setPrefix(false);return m;}
+function mkMap(id){const m=L.map(id,{preferCanvas:true,zoomControl:false,attributionControl:true,maxBoundsViscosity:1,scrollWheelZoom:false});m.fitBounds(SEOUL);m.setMaxBounds(SEOUL.pad(.02));m.setMinZoom(m.getZoom());L.tileLayer(tileURL,{maxZoom:17,className:'osm-dark',attribution:'&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'}).addTo(m);m.attributionControl.setPrefix(false);return m;}
 function animNum(el,to,dur=700,suf='',dec=1){const from=parseFloat(el.textContent)||0,t0=performance.now();function f(t){const k=Math.min(1,(t-t0)/dur),e=1-Math.pow(1-k,3);el.textContent=(from+(to-from)*e).toFixed(dec)+suf;if(k<1)requestAnimationFrame(f);}requestAnimationFrame(f);}
 const fmt=n=>Math.round(n).toLocaleString();
 

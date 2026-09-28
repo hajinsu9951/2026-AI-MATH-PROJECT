@@ -52,6 +52,7 @@
         .negative { color: #1976d2; font-weight: bold; }
         #modal-backdrop { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); z-index: 999; }
     </style>
+<style>.osm-dark{filter:invert(1) hue-rotate(180deg) grayscale(.75) brightness(.78) contrast(1.08)}</style>
 </head>
 <body>
 
@@ -101,7 +102,7 @@
 
 <script>
 const map = L.map('map', { zoomControl: false }).setView([36.3480, 127.3850], 13);
-L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png').addTo(map);
+L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,className:'osm-dark',attribution:'&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'}).addTo(map);
 const canvas = document.getElementById('sim-canvas');
 const ctx = canvas.getContext('2d');
 let width, height;
